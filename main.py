@@ -7,6 +7,9 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+import pandas as pd
+
+import streamlit as st
 
 # List of user-agents
 user_agents = [
@@ -36,6 +39,7 @@ service = Service(driver_path)
 # Initialize WebDriver
 driver = webdriver.Chrome(service=service, options=options)
 
+# function that will extract link to single pages that will be used to get required details
 store=set()
 def get_link():
     url = "https://www.booking.com/searchresults.html?label=gen173nr-1FCAEoggI46AdIM1gEaKcBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALL18u0BsACAdICJDRjMzQ4Nzk0LTM5NmEtNDI4OS04Mzk2LWQ4ODZkZDNjNTdkZdgCBeACAQ&aid=304142&ss=Abuja&ssne=Abuja&ssne_untouched=Abuja&lang=en-us&src=index&dest_id=-1997013&dest_type=city&group_adults=2&no_rooms=1&group_children=0&nflt=ht_id%3D204"
@@ -44,12 +48,14 @@ def get_link():
     for _ in range(2):  # Adjust the number of scrolls as needed
         driver.execute_script("window.scrollBy(0, window.innerHeight);")
         time.sleep(3) 
+
+    #some delays
+    
     element=WebDriverWait(driver,10).until(EC.presence_of_element_located((By.CLASS_NAME,"b9687b0063"))
     )
     time.sleep(random.uniform(1.0, 3.0))  # Introduce a random delay
-    # show=driver.find_element(By.CLASS_NAME,"bf33709ee1.a190bb5f27.dc0e35d124.a746857c37.e8d0e5d0c1.b81c794d25f0298d74a8")
-    # if show:
-    #     show.click()
+    
+    #  pose some mouse move actions and scroll the page to allow more data to load
     actions = ActionChains(driver)
     actions.move_by_offset(100, 200).perform() 
     for i in range(10):
@@ -68,10 +74,7 @@ def get_link():
             for i in sub_element:
                 title=i.find_element(By.CLASS_NAME,"f0ebe87f68").get_attribute('href')
                 store.add(title)
-            print(len(store))
-        
-        
-        
+                
         except Exception as e:
         
             print(f"Error extracting sub-element: {str(e)}")
@@ -79,31 +82,48 @@ def get_link():
     return store
 data=[]
 
+# second level loading of singe pages
 def get_page(link_to_pages):
 
     try:
-
+    
         for link in link_to_pages:
             url_2=link
             driver.get(url_2)
             driver.execute_script("window.scrollBy(0, window.innerHeight);")
-            time.sleep(3) 
+            time.sleep(5) 
             page=WebDriverWait(driver,10).until(EC.presence_of_element_located((By.ID,"basiclayout"))
             )
-            hotel_name=page.find_element(By.ID,"hp_hotel_name_reviews").text
+            hotel_name=page.find_element(By.CLASS_NAME,"af32860db5.pp-header__title").text
             address=page.find_element(By.CLASS_NAME,"hp_address_subtitle.js-hp_address_subtitle.jq_tooltip").text
             packages=[]
-            elements = driver.find_elements(By.CLASS_NAME, "e2585683de.fcfa97735d")
-            for element in elements[:5]:  # Loop through the first 5 elements
+            elements = driver.find_elements(By.CLASS_NAME,"e2585683de.fcfa97735d")
+    
+            for element in elements[:7]:  # Loop through the first 5 elements
                 text = element.text
                 packages.append(text)
+
+            #getting hotel rating
             
+            # for rat in item:
+            #     num=rat.find_element(By.CLASS_NAME,"a1f6e6bc06.ec9dd7ae8f")
+            #     rating_store.append(num)
+            time.sleep(4)
+            review=driver.find_element(By.CLASS_NAME,"a447b19dfd").text
+            if review is not None:
+                review=review
+            else:
+                review=0
+
+            
+            print(review)
 
             temp={
                 "hotel_name":hotel_name,
                 "address":address,
                 "packages":packages,
-                "link":url_2
+                "link":url_2,
+                #"rating":review
 
             }
 
@@ -114,13 +134,28 @@ def get_page(link_to_pages):
     return data
 
 link_to_pages=get_link() 
-print(get_page(link_to_pages))
+extract=get_page(link_to_pages)
+# df=pd.DataFrame(extract)
 
+# df.to_csv('data.csv', index=False)
+# print(df.head())
+print('print finished')
 
+#streamlit congf
+# def load_data(data)->pd.DataFrame:
+#     return pd.read_csv(data)
 
+# # Main function to run the Streamlit app
+# def main():
+#     # Set title and description
+#     st.title('Scrapped Hotels in Abuja from Bookings.com')
+#     st.write('Upl')
 
-# except Exception as e:
-#     print(f"Error occurred: {str(e)}")
+#     # Upload CSV file
+#     df=load_data("data.csv")
 
-# finally:
-#     driver.quit()
+#     st.dataframe(df)
+
+# if __name__ == '__main__':
+#    main()
+#st.title("welcome to web app that allows you to search hotel in abuja by address"
